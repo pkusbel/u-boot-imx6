@@ -265,4 +265,31 @@
 #define CONFIG_PCI_SCAN_SHOW
 #define CONFIG_PCIE_IMX
 #endif
+
+#define CONFIG_ANDROID_AB_SUPPORT
+#define CONFIG_AVB_SUPPORT
+#define CONFIG_FSL_FASTBOOT
+#define CONFIG_CMD_BOOTA
+#define CONFIG_BCB_SUPPORT
+#define CONFIG_SERIAL_TAG
+#define CONFIG_FASTBOOT_STORAGE_MMC
+#define CONFIG_FASTBOOT_LOCK
+#define CONFIG_SYSTEM_RAMDISK_SUPPORT
+
+#define FSL_FASTBOOT_FB_DEV "mmc"
+
+/*
+   @19labs/nabil
+   Boundary devices does not use Android's boot.img for so the following
+   code will fail to read and boot the kernel. Until this is modified to 
+   work with the new image the boota command will only be used to set the
+   bootargs_sec and bootargs_3rd environment variables. Example usage:
+
+   => boota mmc0 # This will fail to boot, but bootargs_sec & bootargs_3rd
+                 # will be set
+   => setenv cmd_custom 'setenv bootargs androidboot.storage_type=emmc $bootargs_3rd ro init=/init $bootargs_sec'
+   => boot
+*/
+#define DISABLE_BOOTA_KERNEL_BOOT
+
 #endif

@@ -50,6 +50,10 @@
 #include <linux/err.h>
 #include <efi_loader.h>
 
+#ifdef CONFIG_FSL_FASTBOOT
+#include <fsl_fastboot.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 ulong monitor_flash_len;
@@ -637,6 +641,20 @@ static int initr_bedbug(void)
 }
 #endif
 
+#ifdef CONFIG_FSL_FASTBOOT
+static int initr_fastboot_setup(void)
+{
+       fastboot_setup();
+       return 0;
+}
+
+static int initr_check_fastboot(void)
+{
+        fastboot_run_bootmode();
+        return 0;
+}
+#endif
+
 static int run_main_loop(void)
 {
 #ifdef CONFIG_SANDBOX
@@ -809,6 +827,9 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_BOARD_LATE_INIT
 	board_late_init,
 #endif
+#ifdef CONFIG_FSL_FASTBOOT
+       initr_fastboot_setup,
+#endif
 #if defined(CONFIG_SCSI) && !defined(CONFIG_DM_SCSI)
 	INIT_FUNC_WATCHDOG_RESET
 	initr_scsi,
@@ -844,6 +865,9 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #if defined(CONFIG_PRAM)
 	initr_mem,
+#endif
+#ifdef CONFIG_FSL_FASTBOOT
+       initr_check_fastboot,
 #endif
 	run_main_loop,
 };

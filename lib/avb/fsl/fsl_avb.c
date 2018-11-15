@@ -95,7 +95,7 @@ static struct blk_desc *get_mmc_desc(void) {
 	// one block a time
 	while (bs <= be) {
 		memset(bdata, 0, blksz);
-		if (!fs_dev_desc->block_read(fs_dev_desc, bs, 1, bdata)) {
+		if (!blk_dread(fs_dev_desc, bs, 1, bdata)) {
 			ret = AVB_IO_RESULT_ERROR_IO;
 			goto fail;
 		}
@@ -198,7 +198,7 @@ fail:
 		}
 		VDEBUG("cur: bs=%ld, num=%ld, start=%ld, cnt=%ld dst=0x%08x\n",
 				bs, blk_num, s, cnt, dst);
-		if (!fs_dev_desc->block_read(fs_dev_desc, bs, blk_num, dst)) {
+		if (!blk_dread(fs_dev_desc, bs, blk_num, dst)) {
 			ret = AVB_IO_RESULT_ERROR_IO;
 			goto fail;
 		}
@@ -303,7 +303,7 @@ fail:
 		if (num_write + cnt >  num_bytes)
 			cnt = num_bytes - num_write;
 		if (!s || cnt != blksz) { //read blk first
-			if (!fs_dev_desc->block_read(fs_dev_desc, bs, 1, bdata)) {
+			if (!blk_dread(fs_dev_desc, bs, 1, bdata)) {
 				ret = AVB_IO_RESULT_ERROR_IO;
 				goto fail;
 			}
@@ -311,7 +311,7 @@ fail:
 		memcpy(bdata + s, in_buf, cnt); //change data
 		VDEBUG("cur: bs=%ld, start=%ld, cnt=%ld bdata=0x%08x\n",
 				bs, s, cnt, bdata);
-		if (!fs_dev_desc->block_write(fs_dev_desc, bs, 1, bdata)) {
+		if (!blk_dwrite(fs_dev_desc, bs, 1, bdata)) {
 			ret = AVB_IO_RESULT_ERROR_IO;
 			goto fail;
 		}
@@ -362,7 +362,6 @@ AvbIOResult fsl_write_ab_metadata(AvbABOps* ab_ops, const struct AvbABData* data
  * code.
  */
 AvbIOResult fsl_read_is_device_unlocked(AvbOps* ops, bool* out_is_unlocked) {
-
 	FbLockState status;
 
 	assert(out_is_unlocked != NULL);

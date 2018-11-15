@@ -14,12 +14,26 @@
 #include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/syscounter.h>
 #include <asm/armv8/mmu.h>
+#include <asm/setup.h>
 #include <errno.h>
 #include <fdt_support.h>
 #include <fsl_wdog.h>
 #include <imx_sip.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#ifdef CONFIG_SERIAL_TAG
+void get_board_serial(struct tag_serialnr *serialnr)
+{
+	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
+	struct fuse_bank *bank = &ocotp->bank[0];
+	struct fuse_bank0_regs *fuse =
+		(struct fuse_bank0_regs *)bank->fuse_regs;
+
+	serialnr->low = fuse->uid_low;
+	serialnr->high = fuse->uid_high;
+}
+#endif
 
 #if defined(CONFIG_SECURE_BOOT)
 struct imx_sec_config_fuse_t const imx_sec_config_fuse = {
