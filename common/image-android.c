@@ -8,6 +8,10 @@
 #include <android_image.h>
 #include <malloc.h>
 #include <errno.h>
+#include <asm/bootm.h>
+#include <asm/mach-imx/boot_mode.h>
+#include <asm/setup.h>
+#include <fsl_fastboot.h>
 
 #define ANDROID_IMAGE_DEFAULT_KERNEL_ADDR	0x10008000
 
@@ -50,6 +54,7 @@ static ulong android_image_get_kernel_addr(const struct andr_img_hdr *hdr)
 int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 			     ulong *os_data, ulong *os_len)
 {
+	extern boot_metric metrics;
 	u32 kernel_addr = android_image_get_kernel_addr(hdr);
 
 	/*
@@ -65,31 +70,100 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 	printf("Kernel load addr 0x%08x size %u KiB\n",
 	       kernel_addr, DIV_ROUND_UP(hdr->kernel_size, 1024));
 
-	int len = 0;
-	if (*hdr->cmdline) {
-		printf("Kernel command line: %s\n", hdr->cmdline);
-		len += strlen(hdr->cmdline);
-	}
-
+	char newbootargs[512] = {0};
+	char commandline[2048] = {0};
 	char *bootargs = env_get("bootargs");
-	if (bootargs)
-		len += strlen(bootargs);
-
-	char *newbootargs = malloc(len + 2);
-	if (!newbootargs) {
-		puts("Error: malloc in android_image_get_kernel failed!\n");
-		return -ENOMEM;
-	}
-	*newbootargs = '\0';
 
 	if (bootargs) {
-		strcpy(newbootargs, bootargs);
-		strcat(newbootargs, " ");
+		strcpy(commandline, bootargs);
+	} else if (*hdr->cmdline) {
+		strcat(commandline, hdr->cmdline);
 	}
-	if (*hdr->cmdline)
-		strcat(newbootargs, hdr->cmdline);
 
-	env_set("bootargs", newbootargs);
+#ifdef CONFIG_SERIAL_TAG
+	struct tag_serialnr serialnr;
+	get_board_serial(&serialnr);
+
+	sprintf(newbootargs,
+					" androidboot.serialno=%08x%08x",
+					serialnr.high,
+					serialnr.low);
+	strcat(commandline, newbootargs);
+#endif
+
+	/* append soc type into bootargs */
+	char *soc_type = env_get("soc_type");
+	if (soc_type) {
+		sprintf(newbootargs,
+			" androidboot.soc_type=%s",
+			soc_type);
+		strcat(commandline, newbootargs);
+	}
+
+	int bootdev = get_boot_device();
+	if (bootdev == SD1_BOOT || bootdev == SD2_BOOT ||
+		bootdev == SD3_BOOT || bootdev == SD4_BOOT) {
+		sprintf(newbootargs,
+			" androidboot.storage_type=sd");
+	} else if (bootdev == MMC1_BOOT || bootdev == MMC2_BOOT ||
+		bootdev == MMC3_BOOT || bootdev == MMC4_BOOT) {
+		sprintf(newbootargs,
+			" androidboot.storage_type=emmc");
+	} else if (bootdev == NAND_BOOT) {
+		sprintf(newbootargs,
+			" androidboot.storage_type=nand");
+	} else
+		printf("boot device type is incorrect.\n");
+	strcat(commandline, newbootargs);
+	if (bootloader_gpt_overlay()) {
+		sprintf(newbootargs, " gpt");
+		strcat(commandline, newbootargs);
+	}
+
+	/* boot metric variables */
+	metrics.ble_1 = get_timer(0);
+	sprintf(newbootargs,
+		" androidboot.boottime=1BLL:%d,1BLE:%d,KL:%d,KD:%d,AVB:%d,ODT:%d,SW:%d",
+		metrics.bll_1, metrics.ble_1, metrics.kl, metrics.kd, metrics.avb,
+		metrics.odt, metrics.sw);
+	strcat(commandline, newbootargs);
+
+#ifdef CONFIG_AVB_SUPPORT
+	/* secondary cmdline added by avb */
+	char *bootargs_sec = env_get("bootargs_sec");
+	if (bootargs_sec) {
+		strcat(commandline, " ");
+		strcat(commandline, bootargs_sec);
+	}
+#endif
+#ifdef CONFIG_SYSTEM_RAMDISK_SUPPORT
+	/* Normal boot:
+	 * cmdline to bypass ramdisk in boot.img, but use the system.img
+	 * Recovery boot:
+	 * Use the ramdisk in boot.img
+	 */
+	char *bootargs_3rd = env_get("bootargs_3rd");
+	if (bootargs_3rd) {
+		strcat(commandline, " ");
+		strcat(commandline, bootargs_3rd);
+	}
+#endif
+
+	/* Add 'append_bootargs' to hold some paramemters which need to be appended
+	 * to bootargs */
+	char *append_bootargs = env_get("append_bootargs");
+	if (append_bootargs) {
+		if (strlen(append_bootargs) + 2 >
+				(sizeof(commandline) - strlen(commandline))) {
+			printf("The 'append_bootargs' is too long to be appended to bootargs\n");
+		} else {
+			strcat(commandline, " ");
+			strcat(commandline, append_bootargs);
+		}
+	}
+
+	printf("Kernel command line: %s\n", commandline);
+	env_set("bootargs", commandline);
 
 	if (os_data) {
 		*os_data = (ulong)hdr;

@@ -7,6 +7,10 @@
 #ifndef __AVB_DEBUG_H__
 #define __AVB_DEBUG_H__
 
+//#define AVB_VVDEBUG
+#define AVB_VDEBUG
+#define AVB_DEBUG
+
 #ifdef AVB_VVDEBUG
 #define AVB_VDEBUG
 #define VVDEBUG(format, ...) printf(" %s: "format, __func__, ##__VA_ARGS__)

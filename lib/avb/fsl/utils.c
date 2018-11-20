@@ -43,7 +43,7 @@ int get_margin_pos(uint64_t part_start, uint64_t part_end, unsigned long blksz,
 			margin->end = blksz - 1;
 		}
 	}
-	VDEBUG("bs=%ld, be=%ld, s=%ld, e=%ld\n",
+	VDEBUG("bs=%llu, be=%llu, s=%ld, e=%ld\n",
 			margin->blk_start, margin->blk_end, margin->start, margin->end);
 
 	if (margin->blk_start > part_end || margin->blk_start < part_start)

@@ -106,7 +106,8 @@
 #define CONFIG_SYS_MMC_ENV_PART         1	/* mmcblk0boot0 */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		((CONFIG_ENV_SIZE + (2*1024) + (16*1024)) * 1024)
+/* @19labs/nabil: increase malloc to 96M to load boot image */
+#define CONFIG_SYS_MALLOC_LEN		(96 * SZ_1M)
 
 #define CONFIG_SYS_SDRAM_BASE           0x40000000
 #define PHYS_SDRAM                      0x40000000
@@ -278,18 +279,12 @@
 
 #define FSL_FASTBOOT_FB_DEV "mmc"
 
-/*
-   @19labs/nabil
-   Boundary devices does not use Android's boot.img for so the following
-   code will fail to read and boot the kernel. Until this is modified to 
-   work with the new image the boota command will only be used to set the
-   bootargs_sec and bootargs_3rd environment variables. Example usage:
-
-   => boota mmc0 # This will fail to boot, but bootargs_sec & bootargs_3rd
-                 # will be set
-   => setenv cmd_custom 'setenv bootargs androidboot.storage_type=emmc $bootargs_3rd ro init=/init $bootargs_sec'
-   => boot
+/* @19labs/nabil:
+   The uboot variable 'bootcmd' needs to be undefined so f_fastboot.c:board_fastboot_setup()
+   can set it to boota to boot android. CONFIG_EXTRA_ENV_SETTINGS & CONFIG_BOOTCOMMAND both
+   set bootcmd so undef both of them.
 */
-#define DISABLE_BOOTA_KERNEL_BOOT
+#undef CONFIG_EXTRA_ENV_SETTINGS
+#undef CONFIG_BOOTCOMMAND
 
 #endif

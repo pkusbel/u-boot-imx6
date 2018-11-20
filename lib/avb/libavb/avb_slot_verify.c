@@ -91,6 +91,8 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   const char* found;
   uint64_t image_size;
 
+  avb_debugv(part_name, "%s\n", __func__, NULL);
+
   if (!avb_hash_descriptor_validate_and_byteswap(
           (const AvbHashDescriptor*)descriptor, &hash_desc)) {
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
@@ -1301,6 +1303,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
                                0 /* expected_public_key_length */,
                                slot_data,
                                &algorithm_type);
+
   if (!allow_verification_error && ret != AVB_SLOT_VERIFY_RESULT_OK) {
     goto fail;
   }

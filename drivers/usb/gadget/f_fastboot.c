@@ -600,7 +600,7 @@ void board_fastboot_setup(void)
 		break;
 #endif /*CONFIG_FASTBOOT_STORAGE_MMC*/
 	default:
-		printf("unsupported boot devices\n");
+		printf("unsupported boot devices %d\n", get_boot_device());
 		break;
 	}
 
@@ -934,16 +934,12 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 	struct andr_img_hdr *hdr = NULL;
 	void *boot_buf = NULL;
 	u32 avb_metric;
-#ifndef DISABLE_BOOTA_KERNEL_BOOT //@19labs/nabil: See define for explination
 	ulong addr = 0;
 	ulong image_size;
 	bool check_image_arm64 =  false;
-#endif
 
 #if defined (CONFIG_ARCH_MX8) || defined (CONFIG_ARCH_MX8M)
-#ifndef DISABLE_BOOTA_KERNEL_BOOT //@19labs/nabil: See define for explination
 	size_t lz4_len = DST_DECOMPRESS_LEN;
-#endif
 #endif
 
 	AvbABFlowResult avb_result;
@@ -959,7 +955,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 		lock_status = FASTBOOT_LOCK;
 	}
 	bool allow_fail = (lock_status == FASTBOOT_UNLOCK ? true : false);
-
 	avb_metric = get_timer(0);
 	/* if in lock state, do avb verify */
 	avb_result = avb_ab_flow_fast(&fsl_avb_ab_ops, requested_partitions, allow_fail,
@@ -976,6 +971,7 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 		/* we should use avb_part_data->data as boot image */
 		/* boot image is already read by avb */
 		hdr = (struct andr_img_hdr *)avb_loadpart->data;
+
 		if (android_image_check_header(hdr)) {
 			printf("boota: bad boot image magic\n");
 			goto fail;
@@ -988,16 +984,27 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 			printf(" boot '%s%s' still\n",
 					avb_loadpart->partition_name, avb_out_data->ab_suffix);
 		}
-		char bootargs_sec[ANDR_BOOT_ARGS_SIZE];
+
+		/* @19labs/nabil: fix buffer overflow in snprintf */
+		char bootargs_sec[2048];
+		int ret;
 		if (lock_status == FASTBOOT_LOCK) {
-			sprintf(bootargs_sec,
-					"androidboot.verifiedbootstate=green androidboot.slot_suffix=%s %s",
-					avb_out_data->ab_suffix, avb_out_data->cmdline);
+			ret = snprintf(bootargs_sec,
+				       sizeof(bootargs_sec),
+				       "androidboot.verifiedbootstate=green androidboot.slot_suffix=%s %s",
+				       avb_out_data->ab_suffix, avb_out_data->cmdline);
 		} else {
-			sprintf(bootargs_sec,
-					"androidboot.verifiedbootstate=orange androidboot.slot_suffix=%s %s",
-					avb_out_data->ab_suffix, avb_out_data->cmdline);
+			ret = snprintf(bootargs_sec,
+				       sizeof(bootargs_sec),
+				       "androidboot.verifiedbootstate=orange androidboot.slot_suffix=%s %s",
+				       avb_out_data->ab_suffix, avb_out_data->cmdline);
 		}
+		if ((ret < 0 || ret >= sizeof(bootargs_sec))) {
+			printf("boota: cmdline too large for bootargs_sec\n");
+			goto fail;
+		}
+		/* @19labs/nabil - end */
+
 		env_set("bootargs_sec", bootargs_sec);
 #ifdef CONFIG_SYSTEM_RAMDISK_SUPPORT
 		if(!is_recovery_mode) {
@@ -1007,9 +1014,7 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 				fastboot_setup_system_boot_args(avb_out_data->ab_suffix, true);
 		}
 #endif
-#ifndef DISABLE_BOOTA_KERNEL_BOOT //@19labs/nabil: See define for explination
 		image_size = avb_loadpart->data_size;
-#endif
 #if defined (CONFIG_ARCH_MX8) || defined (CONFIG_ARCH_MX8M)
 		/* If we are using uncompressed kernel image, copy it directly to
 		 * hdr->kernel_addr, if we are using compressed lz4 kernel image,
@@ -1064,8 +1069,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 			goto fail;
 		}
 
-// @19labs/nabil: See define for explination
-#ifndef DISABLE_BOOTA_KERNEL_BOOT
 		if (android_image_check_header(hdr)) {
 		  printf("boota: bad boot image magic\n");
 		  goto fail;
@@ -1108,7 +1111,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 		}
 		hdr = (struct andr_img_hdr *)(ulong)(hdr->kernel_addr - hdr->page_size);
 #endif /* CONFIG_ARCH_MX8 || CONFIG_ARCH_MX8M */
-#endif //@19labs/nabil
 
 		char bootargs_sec[ANDR_BOOT_ARGS_SIZE];
 		sprintf(bootargs_sec,
@@ -1121,9 +1123,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 #ifdef CONFIG_FASTBOOT_LOCK
 	}
 #endif
-
-// @19labs/nabil: See define for explination
-#ifndef DISABLE_BOOTA_KERNEL_BOOT
 
 	flush_cache((ulong)load_addr, image_size);
 	check_image_arm64  = image_arm64((void *)(ulong)hdr->kernel_addr);
@@ -1198,10 +1197,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]) {
 	do_reset(NULL, 0, 0, NULL);
 
 	return 1;
-#else /* DISABLE_BOOTA_KERNEL_BOOT */
-	return 1;
-#endif /* DISABLE_BOOTA_KERNEL_BOOT */
-
 fail:
 	/* avb has no recovery */
 	if (avb_out_data != NULL)
@@ -1339,7 +1334,6 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (hdr->second_size)
 		printf("fdt      @ %08x (%d)\n", hdr->second_addr, hdr->second_size);
 #endif /*CONFIG_OF_LIBFDT*/
-
 
 	char boot_addr_start[12];
 	char ramdisk_addr[25];

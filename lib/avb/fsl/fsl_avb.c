@@ -102,7 +102,7 @@ static struct blk_desc *get_mmc_desc(void) {
 		cnt = blksz - s;
 		if (num_read + cnt > num_bytes)
 			cnt = num_bytes - num_read;
-		VDEBUG("cur: bs=%ld, start=%ld, cnt=%ld bdata=0x%08x\n",
+		VDEBUG("cur: bs=%ld, start=%ld, cnt=%ld bdata=%p\n",
 				bs, s, cnt, bdata);
 		memcpy(out_buf, bdata + s, cnt);
 		bs++;
@@ -181,7 +181,7 @@ fail:
 		if (!s && bm > 1) {
 			dst = out_buf;
 			dst64 = PTR_ALIGN(out_buf, 64); //for mmc blk read alignment
-			VDEBUG("cur: dst=0x%08x, dst64=0x%08x\n", dst, dst64);
+			VDEBUG("cur: dst=%p, dst64=%p\n", dst, dst64);
 			if (dst64 != dst) {
 				dst = dst64;
 				bm--;
@@ -196,7 +196,7 @@ fail:
 				cnt = num_bytes - num_read;
 			dst = bdata;
 		}
-		VDEBUG("cur: bs=%ld, num=%ld, start=%ld, cnt=%ld dst=0x%08x\n",
+		VDEBUG("cur: bs=%ld, num=%ld, start=%ld, cnt=%ld dst=%p\n",
 				bs, blk_num, s, cnt, dst);
 		if (!blk_dread(fs_dev_desc, bs, blk_num, dst)) {
 			ret = AVB_IO_RESULT_ERROR_IO;
@@ -309,7 +309,7 @@ fail:
 			}
 		}
 		memcpy(bdata + s, in_buf, cnt); //change data
-		VDEBUG("cur: bs=%ld, start=%ld, cnt=%ld bdata=0x%08x\n",
+		VDEBUG("cur: bs=%ld, start=%ld, cnt=%ld bdata=%p\n",
 				bs, s, cnt, bdata);
 		if (!blk_dwrite(fs_dev_desc, bs, 1, bdata)) {
 			ret = AVB_IO_RESULT_ERROR_IO;
