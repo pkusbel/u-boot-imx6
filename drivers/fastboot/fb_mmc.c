@@ -395,8 +395,23 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 #endif
 
 	if (part_get_info_by_name_or_alias(dev_desc, cmd, &info) < 0) {
-		pr_err("cannot find partition: '%s'\n", cmd);
-		fastboot_fail("cannot find partition", response);
+		/* Check if a valid block address was passed in, and if so, write to a block
+		 * This allows writing raw blocks via fastboot flash <block> <binary>
+		 * Note:  simple_strtol return 0 on error so we can't write to block 0
+		*/
+		unsigned int start_addr = simple_strtol(cmd, NULL, 0);
+		if (!start_addr) {
+			pr_err("cannot find partition or invalid addr: '%s'\n", cmd);
+			fastboot_fail("cannot find partition or invalid addr", response);
+			return;
+		}
+
+		disk_partition_t info;
+		info.blksz = dev_desc->blksz;
+		info.start = start_addr;
+		info.size = dev_desc->lba;
+		write_raw_image(dev_desc, &info, cmd, download_buffer,
+				download_bytes, response);
 		return;
 	}
 
@@ -484,5 +499,69 @@ void fastboot_mmc_erase(const char *cmd, char *response)
 
 	printf("........ erased " LBAFU " bytes from '%s'\n",
 	       blks_size * info.blksz, cmd);
+	fastboot_okay(NULL, response);
+}
+
+/**
+ * fastboot_lock_critical() - Disable writing to special
+ * partitions like eMMC bootloader See eMMC spec for more
+ * details
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_lock_critical(char *cmd_parameter, char *response)
+{
+	u8 ack = 1;
+	u8 part_num = 1;
+	u8 access = 0;
+	int ret = -1;
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+
+	if (!mmc) {
+		printf("no mmc device at slot\n");
+		fastboot_fail("no mmc device at slot", response);
+		return;
+	}
+
+	ret = mmc_set_part_conf(mmc, ack, part_num, access);
+	if (ret) {
+		printf("failed to disable bootloader block access\n");
+		fastboot_fail("failed to disable bootloader block access", response);
+		return;
+	}
+
+	fastboot_okay(NULL, response);
+}
+
+/**
+ * unlock_critical() - Enable writing to eMMC bootloader
+ * partition by setting r/w  to boot partition enable bits of
+ * CSD byte 179. See eMMC specification
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_unlock_critical(char *cmd_parameter, char *response)
+{
+	u8 ack = 1;
+	u8 part_num = 1;
+	u8 access = 1;
+	int ret = -1;
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+
+	if (!mmc) {
+		printf("no mmc device at slot\n");
+		fastboot_fail("no mmc device at slot", response);
+		return;
+	}
+
+	ret = mmc_set_part_conf(mmc, ack, part_num, access);
+	if (ret) {
+		printf("failed to enable bootloader block access\n");
+		fastboot_fail("failed to enable bootloader block access", response);
+		return;
+	}
+
 	fastboot_okay(NULL, response);
 }
