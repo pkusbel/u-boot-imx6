@@ -34,4 +34,22 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
  * @response: Pointer to fastboot response buffer
  */
 void fastboot_mmc_erase(const char *cmd, char *response);
+
+/* @19labs/nabil: Add command to lock/unlock emmc bootloader block access */
+/**
+ * fastboot_lock_critical() - Disable writing to eMMC bootloader partition
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_lock_critical(char *cmd_parameter, char *response);
+
+/**
+ * fastboot_unlock_critical() - Enable writing to eMMC bootloader partition
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_unlock_critical(char *cmd_parameter, char *response);
 #endif
+/* @19labs/nabil: end */

@@ -395,9 +395,23 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 #endif
 
 	if (part_get_info_by_name_or_alias(dev_desc, cmd, &info) < 0) {
-		pr_err("cannot find partition: '%s'\n", cmd);
-		fastboot_fail("cannot find partition", response);
+		/* @19labs/nabil: Allow writing to block numbers instead of partition names */
+		/* Since simple_strtol return 0 on error we can't write to addr 0x0 */
+		unsigned int start_addr = simple_strtol(cmd, NULL, 16);
+		if (!start_addr) {
+			pr_err("cannot find partition or invalid addr: '%s'\n", cmd);
+			fastboot_fail("cannot find partition or invalid addr", response);
+			return;
+		}
+
+		disk_partition_t info;
+		info.blksz = dev_desc->blksz;
+		info.start = start_addr;
+		info.size = dev_desc->lba;
+		write_raw_image(dev_desc, &info, cmd, download_buffer,
+				download_bytes, response);
 		return;
+		/* @19labs/nabil: end */
 	}
 
 	if (is_sparse_image(download_buffer)) {
@@ -486,3 +500,65 @@ void fastboot_mmc_erase(const char *cmd, char *response)
 	       blks_size * info.blksz, cmd);
 	fastboot_okay(NULL, response);
 }
+
+/* @19labs/nabil: Add command to lock/unlock emmc bootloader block access */
+/**
+ * fastboot_lock_critical() - Disable writing to eMMC bootloader partition
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_lock_critical(char *cmd_parameter, char *response)
+{
+	u8 ack = 1;
+	u8 part_num = 1;
+	u8 access = 0;
+	int ret = -1;
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+
+	if (!mmc) {
+		printf("no mmc device at slot\n");
+		fastboot_fail("no mmc device at slot", response);
+		return;
+	}
+
+	ret = mmc_set_part_conf(mmc, ack, part_num, access);
+	if (ret) {
+		printf("failed to disable bootloader block access\n");
+		fastboot_fail("failed to disable bootloader block access", response);
+		return;
+	}
+
+	fastboot_okay(NULL, response);
+}
+
+/**
+ * unlock_critical() - Enable writing to eMMC bootloader partition
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_unlock_critical(char *cmd_parameter, char *response)
+{
+	u8 ack = 1;
+	u8 part_num = 1;
+	u8 access = 1;
+	int ret = -1;
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+
+	if (!mmc) {
+		printf("no mmc device at slot\n");
+		fastboot_fail("no mmc device at slot", response);
+		return;
+	}
+
+	ret = mmc_set_part_conf(mmc, ack, part_num, access);
+	if (ret) {
+		printf("failed to enable bootloader block access\n");
+		fastboot_fail("failed to enable bootloader block access", response);
+		return;
+	}
+
+	fastboot_okay(NULL, response);
+}
+/* @19labs/nabil: end */
