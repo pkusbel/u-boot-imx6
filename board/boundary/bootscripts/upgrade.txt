@@ -67,6 +67,12 @@ for n in 5 4 3 2 1 ; do
 	sleep 1 ;
 done
 mmc write ${a_uImage1} ${cntoffset} ${cntfile}
+# @19labs/nabil: clear uboot environment after upgrade
+# Note: Must enable bootloader partition before erasing,
+#       but this has already been done at this point.
+#       E.g. mmc partconf mmc0 1 1 1
+echo "Erase uboot environment"
+mmc erase 0x1ff0 0x10
 
 # Make sure to boot from the proper partition
 if itest ${env_part} != 0 ; then
