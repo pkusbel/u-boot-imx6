@@ -84,10 +84,18 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 	struct tag_serialnr serialnr;
 	get_board_serial(&serialnr);
 
+#ifdef CONFIG_SERIAL_NUM_FROM_MAC_ADDR
 	sprintf(newbootargs,
-					" androidboot.serialno=%08x%08x",
-					serialnr.high,
-					serialnr.low);
+		" androidboot.serialno=%02x%02x%02x%02x%02x%02x",
+		(serialnr.high>>8)&0xff, serialnr.high&0xff,
+		(serialnr.low>>24)&0xff, (serialnr.low>>16)&0xff,
+		(serialnr.low>>8)&0xff, serialnr.low&0xff);
+#else
+	sprintf(newbootargs,
+		" androidboot.serialno=%08x%08x",
+		serialnr.high,
+		serialnr.low);
+#endif
 	strcat(commandline, newbootargs);
 #endif
 

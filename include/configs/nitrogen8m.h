@@ -267,6 +267,8 @@
 #define CONFIG_PCIE_IMX
 #endif
 
+#define CONFIG_SERIAL_NUM_FROM_MAC_ADDR
+
 #define CONFIG_ANDROID_AB_SUPPORT
 #define CONFIG_AVB_SUPPORT
 #define CONFIG_FSL_FASTBOOT
@@ -279,12 +281,10 @@
 
 #define FSL_FASTBOOT_FB_DEV "mmc"
 
-/* @19labs/nabil:
-   The uboot variable 'bootcmd' needs to be undefined so f_fastboot.c:board_fastboot_setup()
-   can set it to boota to boot android. CONFIG_EXTRA_ENV_SETTINGS & CONFIG_BOOTCOMMAND both
-   set bootcmd so undef both of them.
-*/
-#undef CONFIG_EXTRA_ENV_SETTINGS
+/* BOOTCOMMAND is defined as distro_bootcmd by default, which will try to boot
+ * targets like USB and MMC. If those fail run boota to boot Android.
+ */
 #undef CONFIG_BOOTCOMMAND
+#define CONFIG_BOOTCOMMAND "run distro_bootcmd; boota mmc0"
 
 #endif

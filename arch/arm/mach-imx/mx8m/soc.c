@@ -23,6 +23,19 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 #ifdef CONFIG_SERIAL_TAG
+#ifdef CONFIG_SERIAL_NUM_FROM_MAC_ADDR
+extern void imx_get_mac_from_fuse(int dev_id, unsigned char *mac);
+void get_board_serial(struct tag_serialnr *serialnr)
+{
+	unsigned char mac_address[8];
+	char serialbuf[20];
+
+	imx_get_mac_from_fuse(0, mac_address);
+	serialnr->high = (u32)mac_address[0]<<8 | (u32)mac_address[1];
+	serialnr->low = (u32)mac_address[2]<<24 | (u32)mac_address[3]<<16 |
+		(u32)mac_address[4]<<8 | mac_address[5];
+}
+#else
 void get_board_serial(struct tag_serialnr *serialnr)
 {
 	struct ocotp_regs *ocotp = (struct ocotp_regs *)OCOTP_BASE_ADDR;
@@ -33,6 +46,7 @@ void get_board_serial(struct tag_serialnr *serialnr)
 	serialnr->low = fuse->uid_low;
 	serialnr->high = fuse->uid_high;
 }
+#endif
 #endif
 
 #if defined(CONFIG_SECURE_BOOT)
