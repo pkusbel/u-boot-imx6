@@ -267,6 +267,9 @@
 #define CONFIG_PCIE_IMX
 #endif
 
+/* NXP set the device serial number to the value from
+   the OTP register UID. This config changes the serial
+   number to the MAC address from OTP. */
 #define CONFIG_SERIAL_NUM_FROM_MAC_ADDR
 
 #define CONFIG_ANDROID_AB_SUPPORT
