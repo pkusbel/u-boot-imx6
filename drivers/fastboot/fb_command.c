@@ -86,7 +86,7 @@ static const struct {
 		.dispatch = oem_format,
 	},
 #endif
-	/* @19labs/nabil: Add command to lock/unlock emmc bootloader block access */
+	/* Add command to lock/unlock emmc bootloader block access */
 	[FASTBOOT_COMMAND_LOCK_CRITICAL] =  {
 		.command = "flashing lock_critical",
 		.dispatch = fastboot_lock_critical

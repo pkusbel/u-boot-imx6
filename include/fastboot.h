@@ -36,10 +36,8 @@ enum {
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 	FASTBOOT_COMMAND_OEM_FORMAT,
 #endif
-	/* @19labs/nabil: Add command to lock/unlock emmc bootloader block access */
 	FASTBOOT_COMMAND_LOCK_CRITICAL,
 	FASTBOOT_COMMAND_UNLOCK_CRITICAL,
-	/* @19labs/nabil: end */
 	FASTBOOT_COMMAND_COUNT
 };
 

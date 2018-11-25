@@ -29,6 +29,27 @@ static int part_get_info_by_name_or_alias(struct blk_desc *dev_desc,
 {
 	int ret;
 
+
+	/** check if the MMC is configured for boot partition r/w.
+	 *  If so, then we aren't reading the partition table, it's not
+	 *  stored in the boot partition only the bootloader is and
+	 *  instead we are in raw block programming mode of the HW
+	 *  bootpartition, most likely to program the bootloader. If we
+	 *  try to read the partition from emmc while the emmc HW boot
+	 *  partition is activit, it'll just fail. Not a big deal, but
+	 *  the failure is a timeout in SDHC, so it takes a couple
+	 *  seconds to fail. Checking for that here prevents the query
+	 *  and saves the 2 seconds failure.
+	 *  See eMMCC spec for partition configuration registers (CSD
+	 *  Byte 179)
+	 */
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+	if ( mmc && (EXT_CSD_EXTRACT_PARTITION_ACCESS(mmc->part_config))){
+	    /* no partition table available in the boot partitions */
+	    printf("accessing the boot partition, skipping partition table read\n");
+	    return  -1;
+	}
+
 	ret = part_get_info_by_name(dev_desc, name, info);
 	if (ret < 0) {
 		/* strlen("fastboot_partition_alias_") + 32(part_name) + 1 */
@@ -395,9 +416,11 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 #endif
 
 	if (part_get_info_by_name_or_alias(dev_desc, cmd, &info) < 0) {
-		/* @19labs/nabil: Allow writing to block numbers instead of partition names */
-		/* Since simple_strtol return 0 on error we can't write to addr 0x0 */
-		unsigned int start_addr = simple_strtol(cmd, NULL, 16);
+		/* Check if a valid block address was passed in, and if so, write to a block
+		 * This allows writing raw blocks via fastboot flash <block> <binary>
+		 * Note:  simple_strtol return 0 on error so we can't write to block 0
+		*/
+		unsigned int start_addr = simple_strtol(cmd, NULL, 0);
 		if (!start_addr) {
 			pr_err("cannot find partition or invalid addr: '%s'\n", cmd);
 			fastboot_fail("cannot find partition or invalid addr", response);
@@ -408,10 +431,11 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		info.blksz = dev_desc->blksz;
 		info.start = start_addr;
 		info.size = dev_desc->lba;
+		printf("writing raw image starting at block %lu (0x%lx), size %ld\n",
+		       info.start,info.start, info.size);
 		write_raw_image(dev_desc, &info, cmd, download_buffer,
 				download_bytes, response);
 		return;
-		/* @19labs/nabil: end */
 	}
 
 	if (is_sparse_image(download_buffer)) {
@@ -501,9 +525,10 @@ void fastboot_mmc_erase(const char *cmd, char *response)
 	fastboot_okay(NULL, response);
 }
 
-/* @19labs/nabil: Add command to lock/unlock emmc bootloader block access */
 /**
- * fastboot_lock_critical() - Disable writing to eMMC bootloader partition
+ * fastboot_lock_critical() - Disable writing to special
+ * partitions like eMMC bootloader See eMMC spec for more
+ * details
  *
  * @cmd_parameter: Pointer to command parameter
  * @response: Pointer to fastboot response buffer
@@ -533,7 +558,9 @@ void fastboot_lock_critical(char *cmd_parameter, char *response)
 }
 
 /**
- * unlock_critical() - Enable writing to eMMC bootloader partition
+ * unlock_critical() - Enable writing to eMMC bootloader
+ * partition by setting r/w  to boot partition enable bits of
+ * CSD byte 179. See eMMC specification
  *
  * @cmd_parameter: Pointer to command parameter
  * @response: Pointer to fastboot response buffer
@@ -561,4 +588,3 @@ void fastboot_unlock_critical(char *cmd_parameter, char *response)
 
 	fastboot_okay(NULL, response);
 }
-/* @19labs/nabil: end */
