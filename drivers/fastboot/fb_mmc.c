@@ -29,6 +29,27 @@ static int part_get_info_by_name_or_alias(struct blk_desc *dev_desc,
 {
 	int ret;
 
+
+	/** check if the MMC is configured for boot partition r/w.
+	 *  If so, then we aren't reading the partition table, it's not
+	 *  stored in the boot partition only the bootloader is and
+	 *  instead we are in raw block programming mode of the HW
+	 *  bootpartition, most likely to program the bootloader. If we
+	 *  try to read the partition from emmc while the emmc HW boot
+	 *  partition is activit, it'll just fail. Not a big deal, but
+	 *  the failure is a timeout in SDHC, so it takes a couple
+	 *  seconds to fail. Checking for that here prevents the query
+	 *  and saves the 2 seconds failure.
+	 *  See eMMCC spec for partition configuration registers (CSD
+	 *  Byte 179)
+	 */
+	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+	if ( mmc && (EXT_CSD_EXTRACT_PARTITION_ACCESS(mmc->part_config))){
+	    /* no partition table available in the boot partitions */
+	    printf("accessing the boot partition, skipping partition table read\n");
+	    return  -1;
+	}
+
 	ret = part_get_info_by_name(dev_desc, name, info);
 	if (ret < 0) {
 		/* strlen("fastboot_partition_alias_") + 32(part_name) + 1 */
@@ -410,6 +431,8 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		info.blksz = dev_desc->blksz;
 		info.start = start_addr;
 		info.size = dev_desc->lba;
+		printf("writing raw image starting at block %lu (0x%lx), size %ld\n",
+		       info.start,info.start, info.size);
 		write_raw_image(dev_desc, &info, cmd, download_buffer,
 				download_bytes, response);
 		return;
