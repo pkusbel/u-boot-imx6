@@ -15,7 +15,6 @@ obj-$(CONFIG_TIZEN) += tizen/
 obj-$(CONFIG_FIT) += libfdt/
 obj-$(CONFIG_OF_LIVE) += of_live.o
 obj-$(CONFIG_CMD_DHRYSTONE) += dhry/
-obj-$(CONFIG_AVB_SUPPORT) += avb/
 obj-$(CONFIG_ARCH_AT91) += at91/
 obj-$(CONFIG_OPTEE) += optee/
 
@@ -57,7 +56,7 @@ obj-$(CONFIG_$(SPL_)ZLIB) += zlib/
 obj-$(CONFIG_$(SPL_)GZIP) += gunzip.o
 obj-$(CONFIG_$(SPL_)LZO) += lzo/
 
-obj-$(CONFIG_LIBAVB) += libavb/
+obj-$(CONFIG_LIBAVB) += libavb/ libavb_ab/
 
 obj-$(CONFIG_$(SPL_TPL_)SAVEENV) += qsort.o
 obj-$(CONFIG_$(SPL_TPL_)OF_LIBFDT) += libfdt/

@@ -1274,8 +1274,7 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			goto fail;
 		}
 
-		if (mmc->block_dev.block_read(dev_desc, pte->start,
-					      1, (void *)hdr) < 0) {
+		if (blk_dread(dev_desc, pte->start, 1, (void *)hdr) < 0) {
 			printf("boota: mmc failed to read bootimg header\n");
 			goto fail;
 		}
@@ -1288,9 +1287,9 @@ int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		image_size = android_image_get_end(hdr) - (ulong)hdr;
 		bootimg_sectors = image_size/512;
 
-		if (mmc->block_dev.block_read(dev_desc,	pte->start,
-					bootimg_sectors,
-					(void *)(hdr->kernel_addr - hdr->page_size)) < 0) {
+		if (blk_dread(dev_desc,	pte->start,
+				bootimg_sectors,
+				(void *)(hdr->kernel_addr - hdr->page_size)) < 0) {
 			printf("boota: mmc failed to read bootimage\n");
 			goto fail;
 		}

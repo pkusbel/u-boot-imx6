@@ -223,6 +223,12 @@ AvbABFlowResult avb_ab_flow(AvbABOps* ab_ops,
                             AvbHashtreeErrorMode hashtree_error_mode,
                             AvbSlotVerifyData** out_data);
 
+AvbABFlowResult avb_ab_flow_fast(AvbABOps* ab_ops,
+                            const char* const* requested_partitions,
+                            AvbSlotVerifyFlags flags,
+                            AvbHashtreeErrorMode hashtree_error_mode,
+                            AvbSlotVerifyData** out_data);
+
 /* Marks the slot with the given slot number as active. Returns
  * AVB_IO_RESULT_OK on success, error code otherwise.
  *
