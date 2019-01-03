@@ -43,8 +43,10 @@ static int part_get_info_by_name_or_alias(struct blk_desc *dev_desc,
 	 *  Byte 179)
 	 */
 	struct mmc *mmc = find_mmc_device(CONFIG_FASTBOOT_FLASH_MMC_DEV);
+	bool has_boot_part = mmc && IS_MMC(mmc) &&
+			mmc->part_config != MMCPART_NOAVAILABLE;
 
-	if (mmc && (EXT_CSD_EXTRACT_PARTITION_ACCESS(mmc->part_config))) {
+	if (has_boot_part && (EXT_CSD_EXTRACT_PARTITION_ACCESS(mmc->part_config))) {
 	    /* no partition table available in the boot partitions */
 		printf("accessing boot partition, skipping partition table\n");
 		return  -1;
